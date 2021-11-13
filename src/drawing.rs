@@ -78,13 +78,13 @@ pub fn draw_line<const W: usize, const H: usize>(
         for x in ((xpxl1 + 1.0) as usize)..(xpxl2 as usize) {
             plot(ipart(intery), x as f32, rfpart(intery));
             plot(ipart(intery) + 1.0, x as f32, fpart(intery));
-            intery = intery + gradient;
+            intery += gradient;
         }
     } else {
         for x in ((xpxl1 + 1.0) as usize)..(xpxl2 as usize) {
             plot(x as f32, ipart(intery), rfpart(intery));
             plot(x as f32, ipart(intery) + 1.0, fpart(intery));
-            intery = intery + gradient;
+            intery += gradient;
         }
     }
 }
