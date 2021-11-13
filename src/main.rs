@@ -158,6 +158,8 @@ where
     }
 }
 
+mod drawing;
+
 fn draw_line<const W: usize, const H: usize>(
     color: (u8, u8, u8),
     (x1, y1): (i32, i32),
@@ -263,9 +265,9 @@ fn energy<'a>((x, y): (f32, f32), blobs: impl Iterator<Item = &'a Blob>) -> f32 
 }
 
 fn main() {
-    const WIDTH: usize = 50;
-    const HEIGHT: usize = 50;
-    const SCALE: usize = 10;
+    const WIDTH: usize = 300;
+    const HEIGHT: usize = 300;
+    const SCALE: usize = 3;
     const NUM_FRAMES: usize = 1000;
 
     // For reading and opening files
@@ -319,21 +321,36 @@ fn main() {
         let mut result = [[0f32; WIDTH]; HEIGHT];
         let mut img_data = [[0f32; WIDTH * SCALE]; HEIGHT * SCALE];
 
-        let f = |x, y| energy((x, y), blobs.iter());
         let x_rng = (F32(0f32), F32(10f32));
+        let f = |x, y| {
+            energy((x, y), blobs.iter())
+                - 1.0 / (10000.0 * x * x * x * x)
+                - 1.0 / (10000.0 * y * y * y * y)
+                - 1.0
+                    / (10000.0
+                        * (WIDTH as f32 - x)
+                        * (WIDTH as f32 - x)
+                        * (WIDTH as f32 - x)
+                        * (WIDTH as f32 - x))
+                - 1.0
+                    / (10000.0
+                        * (HEIGHT as f32 - y)
+                        * (HEIGHT as f32 - y)
+                        * (HEIGHT as f32 - y)
+                        * (HEIGHT as f32 - y))
+        };
         let y_rng = (F32(0f32), F32(10f32));
 
         sample_points(f, x_rng, y_rng, &mut img_data);
 
         sample_points(f, x_rng, y_rng, &mut result);
 
-        for line in find_all_lines(1.0, SCALE as f32, |x| x as f32, &result) {
-            let x1 = line.a.0 as i32;
-            let y1 = line.a.1 as i32;
-            let x2 = line.b.0 as i32;
-            let y2 = line.b.1 as i32;
-
-            draw_line((0, 0, 0xff), (x1, y1), (x2, y2), &mut img);
+        for Line {
+            a: (x1, y1),
+            b: (x2, y2),
+        } in find_all_lines(1.0, SCALE as f32, |x| x as f32, &result)
+        {
+            drawing::draw_line((0, 0, 0xff), (x1, y1), (x2, y2), &mut img);
         }
 
         step((10.0, 10.0), blobs.iter_mut());
