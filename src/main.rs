@@ -1,5 +1,6 @@
 use core::fmt::Debug;
 use num::{integer::sqrt, Num, Saturating};
+use rayon::prelude::*;
 
 mod endpoint;
 use endpoint::*;
@@ -178,8 +179,8 @@ fn draw_line<const W: usize, const H: usize>(
 
 fn find_all_lines<
     'a,
-    N: Num + Copy + PartialOrd,
-    Cvt: Fn(usize) -> N + 'a + Copy,
+    N: Num + Copy + PartialOrd + Send + Sync,
+    Cvt: Fn(usize) -> N + 'a + Copy + Send + Sync,
     const W: usize,
     const H: usize,
 >(
@@ -187,29 +188,39 @@ fn find_all_lines<
     scale: N,
     cvt: Cvt,
     result: &'a [[N; W]; H],
-) -> impl Iterator<Item = Line<N>> + 'a {
-    (0..(H - 1)).into_iter().flat_map(move |y| {
-        (0..(W - 1)).into_iter().flat_map(move |x| {
-            find_contour(
-                threshold,
-                result[y][x],
-                result[y][x + 1],
-                result[y + 1][x],
-                result[y + 1][x + 1],
-            )
-            .lines()
-            .into_iter()
-            .map(
-                move |Line {
-                          a: (x1, y1),
-                          b: (x2, y2),
-                      }| Line {
-                    a: ((x1 + cvt(x)) * scale, (y1 + cvt(y)) * scale),
-                    b: ((x2 + cvt(x)) * scale, (y2 + cvt(y)) * scale),
-                },
-            )
+) -> impl Iterator<Item = Line<N>> + 'a
+where
+    N: Send,
+{
+    (0..(H - 1))
+        .into_par_iter()
+        .flat_map(move |y| {
+            (0..(W - 1))
+                .into_iter()
+                .flat_map(move |x| {
+                    find_contour(
+                        threshold,
+                        result[y][x],
+                        result[y][x + 1],
+                        result[y + 1][x],
+                        result[y + 1][x + 1],
+                    )
+                    .lines()
+                    .into_iter()
+                    .map(
+                        move |Line {
+                                  a: (x1, y1),
+                                  b: (x2, y2),
+                              }| Line {
+                            a: ((x1 + cvt(x)) * scale, (y1 + cvt(y)) * scale),
+                            b: ((x2 + cvt(x)) * scale, (y2 + cvt(y)) * scale),
+                        },
+                    )
+                })
+                .collect::<Vec<_>>()
         })
-    })
+        .collect::<Vec<_>>()
+        .into_iter()
 }
 
 struct Blob {
@@ -299,7 +310,7 @@ fn main() {
     ];
 
     for _ in 0..NUM_FRAMES {
-        img.iter_mut().flatten().for_each(|(r, g, b)| {
+        img.par_iter_mut().flatten().for_each(|(r, g, b)| {
             *r = r.saturating_add(40);
             *g = g.saturating_add(40);
             *b = b.saturating_add(40);
