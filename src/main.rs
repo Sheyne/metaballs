@@ -131,8 +131,8 @@ where
             b: (interpolate(contour, tl, tr), N::zero()),
         }),
         (true, false, false, false) | (false, true, true, true) => Contour::One(Line {
-            a: (N::zero(), interpolate(contour, tl, tr)),
-            b: (interpolate(contour, tl, bl), N::zero()),
+            a: (interpolate(contour, tl, tr), N::zero()),
+            b: (N::zero(), interpolate(contour, tl, bl)),
         }),
         (true, false, false, true) => Contour::Two(
             Line {
@@ -213,12 +213,13 @@ fn save_png<const W: usize, const H: usize>(path: &str, img: &[[(u8, u8, u8); W]
 }
 
 fn main() {
-    const WIDTH: usize = 50;
-    const HEIGHT: usize = 50;
+    const WIDTH: usize = 10;
+    const HEIGHT: usize = 10;
+    const SCALE: usize = 25;
 
     let mut result = [[0f32; WIDTH]; HEIGHT];
-    let mut big_result = [[0f32; WIDTH * 5]; HEIGHT * 5];
-    let mut img = [[(0xff, 0xff, 0xff); WIDTH * 5]; HEIGHT * 5];
+    let mut big_result = [[0f32; WIDTH * SCALE]; HEIGHT * SCALE];
+    let mut img = [[(0xff, 0xff, 0xff); WIDTH * SCALE]; HEIGHT * SCALE];
 
     let f = |x, y| ((x - 5f32) * (x - 5f32) + (y - 5f32) * (y - 5f32)) / 10f32 * 10f32;
     let x_rng = (F32(0f32), F32(10f32));
@@ -226,11 +227,7 @@ fn main() {
 
     sample_points(f, x_rng, y_rng, &mut big_result);
 
-    colorize(
-        |x| (0, 0xbb, (x * 10f32) as u8),
-        &big_result,
-        &mut img,
-    );
+    colorize(|x| (0, 0xbb, (x * 10f32) as u8), &big_result, &mut img);
 
     sample_points(f, x_rng, y_rng, &mut result);
 
@@ -251,8 +248,14 @@ fn main() {
                      a: (x1, y1),
                      b: (x2, y2),
                  }| Line {
-                    a: ((x1 + x as f32) as usize * 5, (y1 + y as f32) as usize * 5),
-                    b: ((x2 + x as f32) as usize * 5, (y2 + y as f32) as usize * 5),
+                    a: (
+                        ((x1 + x as f32) * SCALE as f32) as usize,
+                        ((y1 + y as f32) * SCALE as f32) as usize,
+                    ),
+                    b: (
+                        ((x2 + x as f32) * SCALE as f32) as usize,
+                        ((y2 + y as f32) * SCALE as f32) as usize,
+                    ),
                 },
             ) {
                 draw_line(
@@ -261,8 +264,8 @@ fn main() {
                     (x2 as i32, y2 as i32),
                     &mut img,
                 );
+                save_png("result.png", &img);
             }
         }
     }
-    save_png("result.png", &img);
 }
